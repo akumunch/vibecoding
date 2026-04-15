@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OLMS — Online Library Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #c8a96e;
+    --accent2: #7c6ef7;
+    --accent3: #4ecdc4;
+    --danger: #e05c5c;
+    --success: #5cb85c;
+    --text: #e8e6de;
+    --text-muted: #7a7a8e;
+    --text-dim: #4a4a5a;
+    --radius: 12px;
+    --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grain */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ─── Sidebar ─────────────────────────────────────────────────── */
+  .sidebar {
+    width: 260px; min-height: 100vh; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; left: 0; top: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-icon {
+    font-size: 28px; margin-bottom: 6px;
+  }
+  .sidebar-logo h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 900; letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+  .sidebar-logo p {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .nav-section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); padding: 20px 24px 8px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 20px; margin: 2px 8px;
+    border-radius: var(--radius); cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px; font-weight: 500; color: var(--text-muted);
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active {
+    background: linear-gradient(135deg, rgba(200,169,110,0.15), rgba(200,169,110,0.05));
+    color: var(--accent); border-color: rgba(200,169,110,0.2);
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 20px; border-radius: 2px; background: var(--accent);
+  }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    margin-top: auto; padding: 20px 24px;
+    border-top: 1px solid var(--border);
+  }
+  .status-chip {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+    box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* ─── Main ─────────────────────────────────────────────────────── */
+  .main {
+    margin-left: 260px; flex: 1;
+    padding: 32px 36px; min-height: 100vh;
+    position: relative; z-index: 1;
+  }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 32px;
+  }
+  .page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; font-weight: 700;
+    background: linear-gradient(135deg, var(--text), var(--text-muted));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ─── Stats ─────────────────────────────────────────────────────── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    transition: var(--transition); cursor: default;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::after {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 80px; height: 80px; border-radius: 50%;
+    opacity: 0.06; transition: var(--transition);
+  }
+  .stat-card:nth-child(1)::after { background: var(--accent); }
+  .stat-card:nth-child(2)::after { background: var(--accent2); }
+  .stat-card:nth-child(3)::after { background: var(--accent3); }
+  .stat-card:nth-child(4)::after { background: var(--danger); }
+  .stat-card:hover { border-color: var(--text-dim); transform: translateY(-2px); }
+  .stat-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-muted); font-family: 'DM Mono', monospace; margin-bottom: 10px; }
+  .stat-value { font-size: 36px; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .stat-card:nth-child(1) .stat-value { color: var(--accent); }
+  .stat-card:nth-child(2) .stat-value { color: var(--accent2); }
+  .stat-card:nth-child(3) .stat-value { color: var(--accent3); }
+  .stat-card:nth-child(4) .stat-value { color: var(--danger); }
+  .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+  /* ─── Section / Card ─────────────────────────────────────────── */
+  .section { display: none; animation: fadeIn 0.3s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .card-header {
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title {
+    font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700;
+  }
+  .card-body { padding: 24px; }
+
+  /* ─── Forms ─────────────────────────────────────────────────────── */
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1/-1; }
+  .form-label {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    font-family: 'DM Mono', monospace; color: var(--text-muted);
+  }
+  .form-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    transition: var(--transition); outline: none; width: 100%;
+  }
+  .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,169,110,0.1); }
+  .form-input::placeholder { color: var(--text-dim); }
+  select.form-input { cursor: pointer; }
+  select.form-input option { background: var(--surface2); }
+
+  /* ─── Buttons ─────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: var(--transition);
+    font-family: 'DM Sans', sans-serif; letter-spacing: 0.3px;
+  }
+  .btn-primary {
+    background: var(--accent); color: #0e0e10;
+  }
+  .btn-primary:hover { background: #d9bc85; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(200,169,110,0.3); }
+  .btn-secondary {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: rgba(224,92,92,0.15); color: var(--danger); border: 1px solid rgba(224,92,92,0.25); }
+  .btn-danger:hover { background: rgba(224,92,92,0.25); }
+  .btn-success { background: rgba(92,184,92,0.15); color: var(--success); border: 1px solid rgba(92,184,92,0.25); }
+  .btn-success:hover { background: rgba(92,184,92,0.25); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ─── Table ─────────────────────────────────────────────────────── */
+  .table-wrapper { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  thead th {
+    padding: 12px 16px; text-align: left;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted);
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(42,42,53,0.6);
+    transition: background var(--transition);
+  }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td {
+    padding: 13px 16px; color: var(--text); vertical-align: middle;
+  }
+  tbody tr:last-child { border-bottom: none; }
+
+  /* ─── Badges ─────────────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    font-family: 'DM Mono', monospace;
+  }
+  .badge-green { background: rgba(92,184,92,0.15); color: var(--success); border: 1px solid rgba(92,184,92,0.2); }
+  .badge-red { background: rgba(224,92,92,0.15); color: var(--danger); border: 1px solid rgba(224,92,92,0.2); }
+  .badge-yellow { background: rgba(200,169,110,0.15); color: var(--accent); border: 1px solid rgba(200,169,110,0.2); }
+  .badge-purple { background: rgba(124,110,247,0.15); color: var(--accent2); border: 1px solid rgba(124,110,247,0.2); }
+  .badge-teal { background: rgba(78,205,196,0.15); color: var(--accent3); border: 1px solid rgba(78,205,196,0.2); }
+
+  /* ─── Toast ─────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    padding: 14px 20px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 500; min-width: 240px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: none; align-items: center; gap: 10px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:none;opacity:1} }
+  .toast-success { background: #1a2e1a; border: 1px solid rgba(92,184,92,0.35); color: var(--success); }
+  .toast-error   { background: #2e1a1a; border: 1px solid rgba(224,92,92,0.35); color: var(--danger); }
+  .toast-info    { background: #1e1e2e; border: 1px solid rgba(124,110,247,0.35); color: var(--accent2); }
+
+  /* ─── Modal ─────────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px); z-index: 100;
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; width: 480px; max-width: 95vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from{transform:scale(0.95);opacity:0} to{transform:none;opacity:1} }
+  .modal-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: var(--transition);
+  }
+  .modal-close:hover { color: var(--danger); border-color: var(--danger); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  /* ─── Search bar ─────────────────────────────────────────────────── */
+  .search-bar {
+    position: relative; margin-bottom: 16px;
+  }
+  .search-bar input {
+    width: 100%; padding: 10px 14px 10px 40px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px; outline: none;
+    transition: var(--transition);
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+
+  /* ─── Empty state ─────────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center; padding: 48px 24px; color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  /* ─── Divider ─────────────────────────────────────────────────────── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* ─── Procedure result ─────────────────────────────────────────────── */
+  .proc-output {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; font-family: 'DM Mono', monospace;
+    font-size: 12px; color: var(--accent3); min-height: 60px;
+    white-space: pre-wrap; margin-top: 16px; display: none;
+  }
+
+  /* ─── Tab Pills ─────────────────────────────────────────────────────── */
+  .tab-pills { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab-pill {
+    padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); color: var(--text-muted);
+    background: var(--surface2); transition: var(--transition);
+    font-family: 'DM Mono', monospace;
+  }
+  .tab-pill.active { background: var(--accent); color: #0e0e10; border-color: var(--accent); }
+  .tab-pill:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+  .tab-content { display: none; } .tab-content.active { display: block; }
+
+  /* ─── Responsive ─────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .sidebar { width: 220px; }
+    .main { margin-left: 220px; padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── Sidebar ─────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">📚</div>
+    <h1>OLMS</h1>
+    <p>Library Management</p>
+  </div>
+
+  <div class="nav-section-label">Overview</div>
+  <div class="nav-item active" onclick="navigate('dashboard')">
+    <span class="nav-icon">⊞</span> Dashboard
+  </div>
+
+  <div class="nav-section-label">Catalogue</div>
+  <div class="nav-item" onclick="navigate('members')">
+    <span class="nav-icon">👤</span> Members
+  </div>
+  <div class="nav-item" onclick="navigate('books')">
+    <span class="nav-icon">📖</span> Books
+  </div>
+  <div class="nav-item" onclick="navigate('authors')">
+    <span class="nav-icon">✍️</span> Authors
+  </div>
+
+  <div class="nav-section-label">Circulation</div>
+  <div class="nav-item" onclick="navigate('issues')">
+    <span class="nav-icon">↗</span> Issue Book
+  </div>
+  <div class="nav-item" onclick="navigate('returns')">
+    <span class="nav-icon">↙</span> Return Book
+  </div>
+  <div class="nav-item" onclick="navigate('reservations')">
+    <span class="nav-icon">🔖</span> Reservations
+  </div>
+
+  <div class="nav-section-label">Finance</div>
+  <div class="nav-item" onclick="navigate('fines')">
+    <span class="nav-icon">₹</span> Fines
+  </div>
+
+  <div class="nav-section-label">Advanced</div>
+  <div class="nav-item" onclick="navigate('procedures')">
+    <span class="nav-icon">⚙</span> Procedures
+  </div>
+  <div class="nav-item" onclick="navigate('views')">
+    <span class="nav-icon">◈</span> Views & Reports
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="status-chip">
+      <div class="status-dot"></div>
+      Connected · localhost:3000
+    </div>
+  </div>
+</aside>
+
+<!-- ─── Main ─────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div id="sec-dashboard" class="section active">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Library at a glance</div>
+      </div>
+      <button class="btn btn-primary" onclick="loadDashboard()">⟳ Refresh</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Members</div>
+        <div class="stat-value" id="stat-members">—</div>
+        <div class="stat-sub">Registered accounts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Books Issued</div>
+        <div class="stat-value" id="stat-issues">—</div>
+        <div class="stat-sub">Active borrows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Reservations</div>
+        <div class="stat-value" id="stat-reservations">—</div>
+        <div class="stat-sub">Pending requests</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Unpaid Fines</div>
+        <div class="stat-value" id="stat-fines">—</div>
+        <div class="stat-sub">Outstanding dues</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Recent Issues</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Member</th><th>Book</th><th>Due Date</th><th>Status</th></tr></thead>
+              <tbody id="dash-issues-body"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">◌</div><p>Loading…</p></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Overdue Summary</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Member</th><th>Book</th><th>Days Late</th></tr></thead>
+              <tbody id="dash-overdue-body"><tr><td colspan="3"><div class="empty-state"><div class="empty-icon">◌</div><p>Loading…</p></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+  <div id="sec-members" class="section">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Members</div>
+        <div class="page-subtitle">Manage library memberships</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('modal-add-member')">＋ Add Member</button>
+    </div>
+
+    <div class="card">
+      <div class="card-body" style="padding:16px 24px 0">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search members by name or email…" oninput="filterTable(this,'members-table')" />
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table id="members-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Member Since</th><th>Actions</th></tr></thead>
+          <tbody id="members-body">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👤</div><p>Click "Load Members" or navigate here to refresh</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--border)">
+        <button class="btn btn-secondary" onclick="loadMembers()">⟳ Load Members</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKS -->
+   
+  <!-- BOOKS -->
+<div id="sec-books" class="section">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Books</div>
+      <div class="page-subtitle">Library catalogue</div>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('modal-add-book')">＋ Add Book</button>
+  </div>
+
+  <!-- ADD BOOK -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Add Book</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Book ID</label>
+          <input class="form-input" id="b-id" type="number"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input class="form-input" id="b-title"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">ISBN</label>
+          <input class="form-input" id="b-isbn"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Edition</label>
+          <input class="form-input" id="b-edition"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Year</label>
+          <input class="form-input" id="b-year" type="number"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category ID</label>
+          <input class="form-input" id="b-category" type="number"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Publisher ID</label>
+          <input class="form-input" id="b-publisher" type="number"/>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="addBook()">Add Book</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXISTING BOOK TABLE (UNCHANGED) -->
+  <div class="card">
+    <div class="card-body" style="padding:16px 24px 0">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search books by title or ISBN…" oninput="filterTable(this,'books-table')" />
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table id="books-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>ISBN</th>
+            <th>Edition</th>
+            <th>Year</th>
+            <th>Category</th>
+            <th>Publisher</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="books-body">
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                <div class="empty-icon">📖</div>
+                <p>No books loaded</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid var(--border)">
+      <button class="btn btn-secondary" onclick="loadBooks()">⟳ Load Books</button>
+    </div>
+  </div>
+</div>
+
+  <!-- AUTHORS -->
+  <div id="sec-authors" class="section">
+    <div class="card">
+  <div class="card-header">
+    <span class="card-title">Add Author</span>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      
+      <div class="form-group">
+        <label class="form-label">Author ID</label>
+        <input class="form-input" id="a-id" type="number"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="a-name"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Country</label>
+        <input class="form-input" id="a-country"/>
+      </div>
+
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="addAuthor()">Add Author</button>
+    </div>
+  </div>
+</div>
+    <div class="page-header">
+      <div><div class="page-title">Authors</div><div class="page-subtitle">Author directory</div></div>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table id="authors-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Country</th><th>Actions</th></tr></thead>
+          <tbody id="authors-body"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">✍️</div><p>No authors loaded</p></div></td></tr></tbody>
+        </table>
+
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--border)">
+        <button class="btn btn-secondary" onclick="loadAuthors()">⟳ Load Authors</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISSUE -->
+  <div id="sec-issues" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Issue Book</div><div class="page-subtitle">Check out a book to a member</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">New Issue</span></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Issue ID</label>
+              <input class="form-input" id="i-issue-id" placeholder="e.g. 10" type="number"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Member ID</label>
+              <input class="form-input" id="i-member-id" placeholder="e.g. 1" type="number"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Book ID</label>
+              <input class="form-input" id="i-book-id" placeholder="e.g. 3" type="number"/>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="issueBook()">↗ Issue Book</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">All Issues</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>ID</th><th>Member</th><th>Book</th><th>Due</th><th>Returned</th></tr></thead>
+              <tbody id="issues-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">↗</div><p>Load issues</p></div></td></tr></tbody>
+            </table>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--border)">
+            <button class="btn btn-secondary btn-sm" onclick="loadIssues()">⟳ Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RETURNS -->
+  <div id="sec-returns" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Return Book</div><div class="page-subtitle">Process a book return</div></div>
+    </div>
+    <div class="card" style="max-width:480px">
+      <div class="card-header"><span class="card-title">Process Return</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Issue ID</label>
+          <input class="form-input" id="r-issue-id" placeholder="Enter the Issue ID to return" type="number"/>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="returnBook()">↙ Confirm Return</button>
+        </div>
+        <div class="proc-output" id="return-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESERVATIONS -->
+  <div id="sec-reservations" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Reservations</div><div class="page-subtitle">Book reservation management</div></div>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>ID</th><th>Member ID</th><th>Book ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="reservations-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔖</div><p>No reservations loaded</p></div></td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--border);display:flex;gap:10px">
+        <button class="btn btn-secondary" onclick="loadReservations()">⟳ Load Reservations</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINES -->
+  <div id="sec-fines" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Fines</div><div class="page-subtitle">Outstanding and paid fines</div></div>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Fine ID</th><th>Member</th><th>Book</th><th>Amount (₹)</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="fines-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">₹</div><p>No fines loaded</p></div></td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--border)">
+        <button class="btn btn-secondary" onclick="loadFines()">⟳ Load Fines</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROCEDURES -->
+  <div id="sec-procedures" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Stored Procedures</div><div class="page-subtitle">Execute backend procedures</div></div>
+    </div>
+    <div class="tab-pills">
+      <div class="tab-pill active" onclick="switchTab('proc','issue')">sp_issue_book</div>
+      <div class="tab-pill" onclick="switchTab('proc','return')">sp_return_book</div>
+      <div class="tab-pill" onclick="switchTab('proc','history')">sp_member_history</div>
+      <div class="tab-pill" onclick="switchTab('proc','flag')">sp_flag_overdue</div>
+      <div class="tab-pill" onclick="switchTab('proc','finereport')">sp_fine_report</div>
+    </div>
+
+    <div id="proc-issue" class="tab-content active card"><div class="card-header"><span class="card-title">sp_issue_book</span><span style="font-size:12px;color:var(--text-muted)">Issues a book to an active member</span></div><div class="card-body"><div class="form-grid"><div class="form-group"><label class="form-label">Issue ID</label><input class="form-input" id="sp-issue-id" type="number" placeholder="10"/></div><div class="form-group"><label class="form-label">Member ID</label><input class="form-input" id="sp-member-id" type="number" placeholder="1"/></div><div class="form-group"><label class="form-label">Book ID</label><input class="form-input" id="sp-book-id" type="number" placeholder="3"/></div></div><div class="btn-group"><button class="btn btn-primary" onclick="callProc('issue_book')">▶ Execute</button></div><div class="proc-output" id="out-issue_book"></div></div></div>
+
+    <div id="proc-return" class="tab-content card"><div class="card-header"><span class="card-title">sp_return_book</span><span style="font-size:12px;color:var(--text-muted)">Marks a book as returned</span></div><div class="card-body"><div class="form-group"><label class="form-label">Issue ID</label><input class="form-input" id="sp-return-id" type="number" placeholder="4"/></div><div class="btn-group"><button class="btn btn-primary" onclick="callProc('return_book')">▶ Execute</button></div><div class="proc-output" id="out-return_book"></div></div></div>
+
+    <div id="proc-history" class="tab-content card"><div class="card-header"><span class="card-title">sp_member_history</span><span style="font-size:12px;color:var(--text-muted)">View a member's full borrowing history</span></div><div class="card-body"><div class="form-group"><label class="form-label">Member ID</label><input class="form-input" id="sp-hist-id" type="number" placeholder="3"/></div><div class="btn-group"><button class="btn btn-primary" onclick="callProc('member_history')">▶ Execute</button></div><div class="proc-output" id="out-member_history"></div></div></div>
+
+    <div id="proc-flag" class="tab-content card"><div class="card-header"><span class="card-title">sp_flag_overdue_members</span><span style="font-size:12px;color:var(--text-muted)">Flags all members with overdue books</span></div><div class="card-body"><p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">This procedure scans all unreturned issues past their due date and sets member status to "Flagged".</p><div class="btn-group"><button class="btn btn-danger" onclick="callProc('flag_overdue')">▶ Execute</button></div><div class="proc-output" id="out-flag_overdue"></div></div></div>
+
+    <div id="proc-finereport" class="tab-content card"><div class="card-header"><span class="card-title">sp_fine_report</span><span style="font-size:12px;color:var(--text-muted)">Running total of all fines</span></div><div class="card-body"><div class="btn-group"><button class="btn btn-primary" onclick="callProc('fine_report')">▶ Execute</button></div><div class="proc-output" id="out-fine_report"></div></div></div>
+  </div>
+
+  <!-- VIEWS -->
+  <div id="sec-views" class="section">
+    <div class="page-header">
+      <div><div class="page-title">Views & Reports</div><div class="page-subtitle">Database views and analytics</div></div>
+    </div>
+    <div class="tab-pills">
+      <div class="tab-pill active" onclick="switchTab('view','active')">Active Members</div>
+      <div class="tab-pill" onclick="switchTab('view','summary')">Issue Summary</div>
+      <div class="tab-pill" onclick="switchTab('view','overdue')">Overdue Issues</div>
+      <div class="tab-pill" onclick="switchTab('view','finesum')">Fine Summary</div>
+    </div>
+    <div id="view-active" class="tab-content active card"><div class="card-header"><span class="card-title">Active Members View</span><button class="btn btn-secondary btn-sm" onclick="loadView('active_members')">⟳ Load</button></div><div class="table-wrapper"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Since</th></tr></thead><tbody id="view-active-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">◌</div><p>Click Load to query view</p></div></td></tr></tbody></table></div></div>
+    <div id="view-summary" class="tab-content card"><div class="card-header"><span class="card-title">Book Issue Summary View</span><button class="btn btn-secondary btn-sm" onclick="loadView('book_issue_summary')">⟳ Load</button></div><div class="table-wrapper"><table><thead><tr><th>Issue ID</th><th>Member</th><th>Book</th><th>Issued</th><th>Due</th><th>Returned</th></tr></thead><tbody id="view-summary-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">◌</div><p>Click Load</p></div></td></tr></tbody></table></div></div>
+    <div id="view-overdue" class="tab-content card"><div class="card-header"><span class="card-title">Overdue Issues View</span><button class="btn btn-secondary btn-sm" onclick="loadView('overdue_issues')">⟳ Load</button></div><div class="table-wrapper"><table><thead><tr><th>Issue ID</th><th>Member</th><th>Book</th><th>Due Date</th><th>Days Overdue</th></tr></thead><tbody id="view-overdue-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">◌</div><p>Click Load</p></div></td></tr></tbody></table></div></div>
+    <div id="view-finesum" class="tab-content card"><div class="card-header"><span class="card-title">Fine Summary View</span><button class="btn btn-secondary btn-sm" onclick="loadView('fine_summary')">⟳ Load</button></div><div class="table-wrapper"><table><thead><tr><th>Member</th><th>Book</th><th>Amount (₹)</th><th>Status</th></tr></thead><tbody id="view-finesum-body"><tr><td colspan="4"><div class="empty-state"><div class="empty-icon">◌</div><p>Click Load</p></div></td></tr></tbody></table></div></div>
+  </div>
+
+</main>
+
+<!-- ─── Add Member Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-add-member">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Member</div>
+      <button class="modal-close" onclick="closeModal('modal-add-member')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="m-name" placeholder="e.g. Akshath Thoguparthy"/>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Email Address</label>
+          <input class="form-input" id="m-email" type="email" placeholder="e.g. akshath@email.com"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-member')">Cancel</button>
+      <button class="btn btn-primary" onclick="addMember()">＋ Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Member Modal -->
+<div class="modal-overlay" id="modal-edit-member">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Member</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-member')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">New Name</label>
+        <input class="form-input" id="edit-name" placeholder="Updated name"/>
+        <input type="hidden" id="edit-id"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-member')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateMember()">✓ Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  async function addAuthor() {
+  const data = {
+    id: parseInt(document.getElementById('a-id').value),
+    name: document.getElementById('a-name').value,
+    country: document.getElementById('a-country').value
+  };
+
+  try {
+    const res = await fetch(`${API}/add-author`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const msg = await res.text();
+    alert(msg);
+    loadAuthors(); // refresh table
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+  async function addBook() {
+  const data = {
+    id: document.getElementById('b-id').value,
+    title: document.getElementById('b-title').value,
+    isbn: document.getElementById('b-isbn').value,
+    edition: document.getElementById('b-edition').value,
+    year: document.getElementById('b-year').value,
+    category_id: document.getElementById('b-category').value,
+    publisher_id: document.getElementById('b-publisher').value
+  };
+
+  try {
+    const res = await fetch(`${API}/add-book`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const msg = await res.text();
+    alert(msg);
+    loadBooks();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+const API = 'http://localhost:3000';
+
+// ─── Navigation ───────────────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-'+page).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'members') loadMembers();
+  if (page === 'books') loadBooks();
+  if (page === 'authors') loadAuthors();
+  if (page === 'issues') loadIssues();
+  if (page === 'reservations') loadReservations();
+  if (page === 'fines') loadFines();
+}
+
+// ─── Tab Pills ────────────────────────────────────────────────────
+function switchTab(group, id) {
+  document.querySelectorAll(`[id^="${group}-"]`).forEach(t => t.classList.remove('active'));
+  document.getElementById(`${group}-${id}`).classList.add('active');
+  document.querySelectorAll('.tab-pill').forEach((p,i) => {
+    if (p.getAttribute('onclick')?.includes(`'${group}','${id}'`)) p.classList.add('active');
+    else if (p.getAttribute('onclick')?.includes(`'${group}'`)) p.classList.remove('active');
+  });
+}
+
+// ─── Modal ────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); })
+);
+
+// ─── Toast ────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.className = `toast-${type}`;
+  t.style.display = 'flex';
+  t.innerHTML = (type==='success'?'✓':type==='error'?'✕':'ℹ') + ' ' + msg;
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.style.display='none', 3200);
+}
+
+// ─── Search filter ────────────────────────────────────────────────
+function filterTable(input, tableId) {
+  const q = input.value.toLowerCase();
+  document.querySelectorAll(`#${tableId} tbody tr`).forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ─── API helpers ─────────────────────────────────────────────────
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API+path, opts);
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const members = await api('/get');
+    document.getElementById('stat-members').textContent = Array.isArray(members) ? members.length : '?';
+
+    const issues = await api('/issues');
+    const active = Array.isArray(issues) ? issues.filter(i => !i.Return_Date) : [];
+    document.getElementById('stat-issues').textContent = active.length;
+
+    const reservations = await api('/reservations');
+    const pending = Array.isArray(reservations) ? reservations.filter(r => r.Status === 'Pending') : [];
+    document.getElementById('stat-reservations').textContent = pending.length;
+
+    const fines = await api('/fines');
+    const unpaid = Array.isArray(fines) ? fines.filter(f => f.Payment_Status === 'Unpaid') : [];
+    document.getElementById('stat-fines').textContent = unpaid.length;
+
+    // Recent issues table
+    const tbody = document.getElementById('dash-issues-body');
+    if (Array.isArray(issues) && issues.length) {
+      tbody.innerHTML = issues.slice(0,5).map(i => `
+        <tr>
+          <td>${i.Member_Name || i.Member_ID}</td>
+          <td>${i.Book_Title || i.Book_ID}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${i.Due_Date||'—'}</td>
+          <td>${i.Return_Date ? '<span class="badge badge-green">Returned</span>' : '<span class="badge badge-yellow">Active</span>'}</td>
+        </tr>`).join('');
+    } else { tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">↗</div><p>No issues found</p></div></td></tr>'; }
+
+    // Overdue
+    const overdue = await api('/view/overdue_issues');
+    const ob = document.getElementById('dash-overdue-body');
+    if (Array.isArray(overdue) && overdue.length) {
+      ob.innerHTML = overdue.map(o => `
+        <tr>
+          <td>${o.Member_Name}</td>
+          <td>${o.Book_Title}</td>
+          <td><span class="badge badge-red">${o.Days_Overdue} days</span></td>
+        </tr>`).join('');
+    } else { ob.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">✓</div><p>No overdue issues</p></div></td></tr>'; }
+  } catch(e) { toast('Could not connect to server. Is it running?','error'); }
+}
+
+// ─── Members ─────────────────────────────────────────────────────
+async function loadMembers() {
+  const data = await api('/get');
+  const tbody = document.getElementById('members-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👤</div><p>No members found</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(m => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${m.Member_ID}</td>
+      <td style="font-weight:600">${m.Name}</td>
+      <td style="color:var(--text-muted)">${m.Email||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${m.Phone||'—'}</td>
+      <td>${statusBadge(m.Status)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${m.Membership_Date||'—'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEdit(${m.Member_ID},'${m.Name}')">✎ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.Member_ID})">✕ Delete</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function statusBadge(s) {
+  const map = {'Active':'badge-green','Flagged':'badge-red','Inactive':'badge-yellow'};
+  return `<span class="badge ${map[s]||'badge-purple'}">${s||'Unknown'}</span>`;
+}
+
+async function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  const email = document.getElementById('m-email').value.trim();
+  if (!name || !email) { toast('Please fill all fields','error'); return; }
+  const res = await api('/add','POST',{name,email});
+  toast('Member added successfully!');
+  closeModal('modal-add-member');
+  document.getElementById('m-name').value='';
+  document.getElementById('m-email').value='';
+  loadMembers();
+}
+
+function openEdit(id, name) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-name').value = name;
+  openModal('modal-edit-member');
+}
+
+async function updateMember() {
+  const id = document.getElementById('edit-id').value;
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { toast('Name cannot be empty','error'); return; }
+  await api('/update','PUT',{id,name});
+  toast('Member updated!');
+  closeModal('modal-edit-member');
+  loadMembers();
+}
+
+async function deleteMember(id) {
+  if (!confirm(`Delete member #${id}? This cannot be undone.`)) return;
+  const res = await api('/delete','DELETE',{id});
+  if (typeof res === 'string' && res.includes('Error')) toast(res,'error');
+  else { toast('Member deleted'); loadMembers(); }
+}
+
+// ─── Books ────────────────────────────────────────────────────────
+async function loadBooks() {
+  const data = await api('/books');
+  const tbody = document.getElementById('books-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📖</div><p>No books found</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(b => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${b.Book_ID}</td>
+      <td style="font-weight:600">${b.Title}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted)">${b.ISBN||'—'}</td>
+      <td>${b.Edition||'—'}</td>
+      <td>${b.Year||'—'}</td>
+      <td><span class="badge badge-purple">${b.Category_Name||'—'}</span></td>
+      <td>${b.Publisher_ID||'—'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditBook(${b.Book_ID},'${b.Title.replace(/'/g,"\\\'")}','${b.ISBN||''}','${b.Edition||''}',${b.Year||0},${b.Category_ID||0},${b.Publisher_ID||0})">✎ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.Book_ID})">✕ Delete</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ─── Authors ──────────────────────────────────────────────────────
+async function loadAuthors() {
+  const data = await api('/authors');
+  const tbody = document.getElementById('authors-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">✍️</div><p>No authors found</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(a => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${a.Author_ID}</td>
+      <td style="font-weight:600">${a.Name}</td>
+      <td><span class="badge badge-teal">${a.Country||'Unknown'}</span></td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditAuthor(${a.Author_ID},'${a.Name.replace(/'/g, "\\'")}', '${a.Country||''}')">✎ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAuthor(${a.Author_ID})">✕ Delete</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+}
+
+// ─── Issues ───────────────────────────────────────────────────────
+async function loadIssues() {
+  const data = await api('/issues');
+  const tbody = document.getElementById('issues-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">↗</div><p>No issues</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(i => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${i.Issue_ID}</td>
+      <td>${i.Member_Name||i.Member_ID}</td>
+      <td>${i.Book_Title||i.Book_ID}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${i.Due_Date||'—'}</td>
+      <td>${i.Return_Date ? `<span class="badge badge-green">Returned</span>` : `<span class="badge badge-yellow">Active</span>`}</td>
+    </tr>`).join('');
+}
+
+async function issueBook() {
+  const issue_id = document.getElementById('i-issue-id').value;
+  const member_id = document.getElementById('i-member-id').value;
+  const book_id = document.getElementById('i-book-id').value;
+  if (!issue_id||!member_id||!book_id) { toast('Fill all fields','error'); return; }
+  const res = await api('/issue','POST',{issue_id,member_id,book_id});
+  if (typeof res === 'string' && res.toLowerCase().includes('error')) toast(res,'error');
+  else { toast('Book issued successfully!'); loadIssues(); }
+}
+
+// ─── Return ───────────────────────────────────────────────────────
+async function returnBook() {
+  const id = document.getElementById('r-issue-id').value;
+  if (!id) { toast('Enter an Issue ID','error'); return; }
+  const res = await api('/return','PUT',{issue_id: id});
+  const out = document.getElementById('return-output');
+  out.style.display='block';
+  out.textContent = typeof res === 'object' ? JSON.stringify(res,null,2) : res;
+  toast('Book returned successfully!');
+}
+
+// ─── Reservations ────────────────────────────────────────────────
+async function loadReservations() {
+  const data = await api('/reservations');
+  const tbody = document.getElementById('reservations-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔖</div><p>No reservations</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${r.Reservation_ID}</td>
+      <td>${r.Member_ID}</td>
+      <td>${r.Book_ID}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.Reservation_Date||'—'}</td>
+      <td>${resBadge(r.Status)}</td>
+      <td>
+        ${r.Status==='Pending' ? `<button class="btn btn-success btn-sm" onclick="updateReservation(${r.Reservation_ID},'Fulfilled')">✓ Fulfill</button>
+        <button class="btn btn-danger btn-sm" onclick="updateReservation(${r.Reservation_ID},'Cancelled')">✕ Cancel</button>` : '—'}
+      </td>
+    </tr>`).join('');
+}
+
+function resBadge(s) {
+  const map = {'Pending':'badge-yellow','Fulfilled':'badge-green','Cancelled':'badge-red'};
+  return `<span class="badge ${map[s]||'badge-purple'}">${s}</span>`;
+}
+
+async function updateReservation(id, status) {
+  const res = await api('/reservation','PUT',{id,status});
+  if (typeof res === 'string' && res.includes('Error')) toast(res,'error');
+  else { toast(`Reservation ${status.toLowerCase()}`); loadReservations(); }
+}
+
+// ─── Fines ────────────────────────────────────────────────────────
+async function loadFines() {
+  const data = await api('/fines');
+  const tbody = document.getElementById('fines-body');
+  if (!Array.isArray(data) || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">₹</div><p>No fines</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(f => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${f.Fine_ID}</td>
+      <td>${f.Member_Name||f.Member_ID}</td>
+      <td>${f.Book_Title||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--danger)">₹${parseFloat(f.Amount||0).toFixed(2)}</td>
+      <td>${f.Payment_Status==='Paid' ? '<span class="badge badge-green">Paid</span>' : '<span class="badge badge-red">Unpaid</span>'}</td>
+      <td>${f.Payment_Status==='Unpaid' ? `<button class="btn btn-success btn-sm" onclick="payFine(${f.Fine_ID})">✓ Mark Paid</button>` : '—'}</td>
+    </tr>`).join('');
+}
+
+async function payFine(id) {
+  const res = await api('/fine/pay','PUT',{id});
+  if (typeof res === 'string' && res.includes('Error')) toast(res,'error');
+  else { toast('Fine marked as paid!'); loadFines(); }
+}
+
+// ─── Procedures ──────────────────────────────────────────────────
+async function callProc(name) {
+  const out = document.getElementById('out-'+name);
+  out.style.display='block'; out.textContent='Executing…';
+  let res;
+  try {
+    if (name==='issue_book') res = await api('/proc/issue_book','POST',{issue_id:+document.getElementById('sp-issue-id').value,member_id:+document.getElementById('sp-member-id').value,book_id:+document.getElementById('sp-book-id').value});
+    else if (name==='return_book') res = await api('/proc/return_book','POST',{issue_id:+document.getElementById('sp-return-id').value});
+    else if (name==='member_history') res = await api('/proc/member_history','POST',{member_id:+document.getElementById('sp-hist-id').value});
+    else if (name==='flag_overdue') res = await api('/proc/flag_overdue','POST',{});
+    else if (name==='fine_report') res = await api('/proc/fine_report','POST',{});
+    out.textContent = typeof res==='object' ? JSON.stringify(res,null,2) : res;
+    toast('Procedure executed successfully!');
+  } catch(e) { out.textContent='Error: '+e.message; toast('Procedure failed','error'); }
+}
+
+// ─── Views ────────────────────────────────────────────────────────
+async function loadView(name) {
+  const data = await api('/view/'+name);
+  const map = {
+    'active_members': {id:'view-active-body', cols:['Member_ID','Name','Email','Phone','Membership_Date']},
+    'book_issue_summary': {id:'view-summary-body', cols:['Issue_ID','Member_Name','Book_Title','Issue_Date','Due_Date','Return_Date']},
+    'overdue_issues': {id:'view-overdue-body', cols:['Issue_ID','Member_Name','Book_Title','Due_Date','Days_Overdue']},
+    'fine_summary': {id:'view-finesum-body', cols:['Member_Name','Book_Title','Amount','Payment_Status']},
+  };
+  const cfg = map[name]; if(!cfg) return;
+  const tbody = document.getElementById(cfg.id);
+  if (!Array.isArray(data)||!data.length) {
+    tbody.innerHTML=`<tr><td colspan="${cfg.cols.length}"><div class="empty-state"><div class="empty-icon">◌</div><p>No data</p></div></td></tr>`; return;
+  }
+  tbody.innerHTML = data.map(row => `<tr>${cfg.cols.map(c => {
+    let v = row[c]??'—';
+    if (c==='Days_Overdue') v=`<span class="badge badge-red">${v} days</span>`;
+    if (c==='Payment_Status') v=v==='Paid'?`<span class="badge badge-green">Paid</span>`:`<span class="badge badge-red">Unpaid</span>`;
+    if (c==='Amount') v=`<span style="font-family:'DM Mono',monospace;color:var(--danger)">₹${parseFloat(v).toFixed(2)}</span>`;
+    if (c==='Member_ID'||c==='Issue_ID') v=`<span style="font-family:'DM Mono',monospace;color:var(--text-muted)">#${v}</span>`;
+    if (c==='Return_Date'&&v!=='—') v=`<span class="badge badge-green">${v}</span>`;
+    return `<td>${v}</td>`;
+  }).join('')}</tr>`).join('');
+}
+
+// ─── Init ────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>
