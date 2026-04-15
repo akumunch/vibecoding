@@ -82,10 +82,18 @@ app.put('/books/update', async (req, res) => {
 // DELETE book
 app.delete('/books/delete', async (req, res) => {
   const { id } = req.body;
+
   try {
+    await q("DELETE FROM BOOK_AUTHOR WHERE Book_ID=?", [id]);
+    await q("DELETE FROM ISSUE WHERE Book_ID=?", [id]);
+    await q("DELETE FROM RESERVATION WHERE Book_ID=?", [id]);
+
     await q("DELETE FROM BOOK WHERE Book_ID=?", [id]);
-    res.send("Book deleted successfully");
-  } catch(e) { res.status(500).send(e.message); }
+
+    res.send("Book deleted");
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
 });
 
 
@@ -108,10 +116,18 @@ app.put('/authors/update', async (req, res) => {
 // DELETE author
 app.delete('/authors/delete', async (req, res) => {
   const { id } = req.body;
+
   try {
-    await q("DELETE FROM AUTHOR WHERE Author_ID=?", [id]);
+    // 1. delete from child table first
+    await q("DELETE FROM BOOK_AUTHOR WHERE Author_ID = ?", [id]);
+
+    // 2. then delete from parent table
+    await q("DELETE FROM AUTHOR WHERE Author_ID = ?", [id]);
+
     res.send("Author deleted successfully");
-  } catch(e) { res.status(500).send("Error: " + e.message); }
+  } catch (e) {
+    res.status(500).send("Error: " + e.message);
+  }
 });
 
 
@@ -275,3 +291,36 @@ app.post('/add-author', async (req, res) => {
     res.status(500).send(e.message);
   }
 });
+
+app.put('/books/update', async (req, res) => {
+  const { id, title, isbn, edition, year, category_id, publisher_id } = req.body;
+
+  try {
+    await q(
+      "UPDATE BOOK SET Title=?, ISBN=?, Edition=?, Year=?, Category_ID=?, Publisher_ID=? WHERE Book_ID=?",
+      [title, isbn, edition, year, category_id, publisher_id, id]
+    );
+
+    res.send("Book updated successfully");
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+async function updateAuthor() {
+  const id = document.getElementById('editAuthorId').value;
+
+  const res = await fetch(`${API}/authors/update`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      id,
+      name: document.getElementById('editAuthorName').value,
+      country: document.getElementById('editAuthorCountry').value
+    })
+  });
+
+  alert(await res.text());
+  closeModal('editAuthorModal');
+  loadAuthors();
+}

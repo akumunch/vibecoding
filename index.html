@@ -841,8 +841,140 @@
 
 <!-- Toast -->
 <div id="toast"></div>
+<div id="editBookModal" class="modal">
+  <div class="modal-content">
+    
+    <div class="modal-header">
+      <div class="modal-title">Edit Book</div>
+      <button class="modal-close" onclick="closeModal('editBookModal')">✕</button>
+    </div>
 
+    <div class="modal-body">
+      <input type="hidden" id="editBookId">
+
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" id="editTitle">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ISBN</label>
+        <input class="form-input" id="editISBN">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Edition</label>
+        <input class="form-input" id="editEdition">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Year</label>
+        <input class="form-input" id="editYear" type="number">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category ID</label>
+        <input class="form-input" id="editCategory" type="number">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Publisher ID</label>
+        <input class="form-input" id="editPublisher" type="number">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editBookModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateBook()">✓ Save Changes</button>
+    </div>
+
+  </div>
+</div>
+<div id="editAuthorModal" class="modal">
+  <div class="modal-content">
+
+    <div class="modal-header">
+      <div class="modal-title">Edit Author</div>
+      <button class="modal-close" onclick="closeModal('editAuthorModal')">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <input type="hidden" id="editAuthorId">
+
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="editAuthorName">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Country</label>
+        <input class="form-input" id="editAuthorCountry">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editAuthorModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateAuthor()">✓ Save Changes</button>
+    </div>
+
+  </div>
+</div>
 <script>
+  function openEditAuthor(id, name, country) {
+  document.getElementById('editAuthorId').value = id;
+  document.getElementById('editAuthorName').value = name;
+  document.getElementById('editAuthorCountry').value = country;
+
+  openModal('editAuthorModal');
+}
+  async function updateBook() {
+  const id = document.getElementById('editBookId').value;
+
+  const res = await fetch(`${API}/books/update`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id,
+      title: document.getElementById('editTitle').value,
+      isbn: document.getElementById('editISBN').value,
+      edition: document.getElementById('editEdition').value,
+      year: document.getElementById('editYear').value,
+      category_id: document.getElementById('editCategory').value,
+      publisher_id: document.getElementById('editPublisher').value
+    })
+  });
+
+  alert(await res.text());
+  document.getElementById('editBookModal').style.display = 'none';
+  loadBooks();
+}
+  function openEditBook(id, title, isbn, edition, year, category_id, publisher_id) {
+  document.getElementById('editBookId').value = id;
+  document.getElementById('editTitle').value = title;
+  document.getElementById('editISBN').value = isbn;
+  document.getElementById('editEdition').value = edition;
+  document.getElementById('editYear').value = year;
+  document.getElementById('editCategory').value = category_id;
+  document.getElementById('editPublisher').value = publisher_id;
+
+  openModal('editBookModal');
+}
+  async function deleteAuthor(id) {
+  if (!confirm("Delete author?")) return;
+
+  const res = await fetch(`${API}/authors/delete`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ id })
+  });
+
+  const msg = await res.text();
+  alert(msg);
+
+  loadAuthors(); // refresh table
+}
   async function addAuthor() {
   const data = {
     id: parseInt(document.getElementById('a-id').value),
@@ -917,9 +1049,11 @@ function switchTab(group, id) {
 }
 
 // ─── Modal ────────────────────────────────────────────────────────
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal-overlay').forEach(m =>
+function openModal(id) {
+  document.getElementById(id).style.display = 'block';
+}function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}document.querySelectorAll('.modal-overlay').forEach(m =>
   m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); })
 );
 
@@ -1249,5 +1383,6 @@ async function loadView(name) {
 // ─── Init ────────────────────────────────────────────────────────
 loadDashboard();
 </script>
+
 </body>
 </html>
